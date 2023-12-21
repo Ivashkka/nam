@@ -1,6 +1,8 @@
+
+##basic client implementation (for now just inputs and prints)##
+
 def send_response(message, user_name):
     print(f"new reply for user {user_name}: {message}")
-
 
 def wait_for_req():
     user_name = input("user_name: ")
