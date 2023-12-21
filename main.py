@@ -21,11 +21,11 @@ def session_thread(session_id): ###weak point !! (TODO: find another way to stor
             ses_ref().new_message_detected = False #(could be moved into session add message method)
             ai_resp = datastruct.AIresponse(message=ai.ask(ses_ref().text_history), uuid=uuid.uuid4()) #ask g4f
             ses_ref().add_message(ai_resp) #add response to session history
-            listen.send_response(ai_resp.message, ses_ref().user.name) #send response to the corresponding user
+            listen.send_data(ai_resp.message, ses_ref().user.name) #send response to the corresponding user
 
 def main():
     while True:
-        gotreq = listen.wait_for_req() #wait for client request
+        gotreq = listen.get_data() #wait for client request
         user = datastruct.NAMuser(name=gotreq["user_name"], uuid=gotreq["user_id"])
         message = datastruct.AIrequest(message=gotreq["message"], uuid=uuid.uuid4())
         user_ses = None
@@ -40,4 +40,5 @@ def main():
 
 if __name__ == "__main__":
     ai.initg4f()
+    listen.start_server()
     main()
