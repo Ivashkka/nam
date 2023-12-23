@@ -1,53 +1,32 @@
 import enum
 
-class NAMDtype(enum.Enum): # ai data type
-    request = 0
-    response = 1
-    auth_data = 2
+class NAMDtype(enum.Enum): # primary key to transfer data between server and client
+    AIrequest = "AIrequest"
+    AIresponse = "AIresponse"
+    NAMuser = "NAMuser"
 
 #basic classes for user, response, request and session:
 
 class NAMuser:
     __slots__ = ['type', 'name', 'uuid']
-    def __init__(self=None, name=None, uuid=None, dict=None):
-        self.type = NAMDtype.auth_data
+    def __init__(self=None, name=None, uuid=None):
+        self.type = NAMDtype.NAMuser
         self.name = name
         self.uuid = uuid
-        if dict: self.from_dict(dict)
-    def to_dict(self):
-        return {"type": self.type.value, "name": self.name, "uuid": self.uuid}
-    def from_dict(self, dict):
-        self.name = dict["name"]
-        self.uuid = dict["uuid"]
-        self.type = NAMDtype(dict["type"])
 
 class AIrequest:
     __slots__ = ['message', 'uuid', 'type']
-    def __init__(self=None, message=None, uuid=None, dict=None):
+    def __init__(self=None, message=None, uuid=None):
         self.message = message
         self.uuid = uuid
-        self.type = NAMDtype.request
-        if dict: self.from_dict(dict)
-    def to_dict(self):
-        return {"type": self.type.value, "message": self.message, "uuid": self.uuid}
-    def from_dict(self, dict):
-        self.message = dict["message"]
-        self.uuid = dict["uuid"]
-        self.type = NAMDtype(dict["type"])
+        self.type = NAMDtype.AIrequest
 
 class AIresponse:
     __slots__ = ['message', 'uuid', 'type']
-    def __init__(self=None, message=None, uuid=None, dict=None):
+    def __init__(self=None, message=None, uuid=None):
         self.message = message
         self.uuid = uuid
-        self.type = NAMDtype.response
-        if dict: self.from_dict(dict)
-    def to_dict(self):
-        return {"type": self.type.value, "message": self.message, "uuid": self.uuid}
-    def from_dict(self, dict):
-        self.message = dict["message"]
-        self.uuid = dict["uuid"]
-        self.type = NAMDtype(dict["type"])
+        self.type = NAMDtype.AIresponse
 
 class NAMconnection:
     __slots__ = ['uuid', 'user', 'client_conn', 'client_addr']
@@ -69,9 +48,9 @@ class NAMsession:
     def add_message(self, message):
         self.messages_history.append(message)
         match message.type:
-            case NAMDtype.request:
+            case NAMDtype.AIrequest:
                 self.text_history.append({"role": "user", "content": message.message})
-            case NAMDtype.response:
+            case NAMDtype.AIresponse:
                 self.text_history.append({"role": "assistant", "content": message.message})
             case _:
                 pass
@@ -84,3 +63,22 @@ class NAMsession:
 
     def get_client_conn(self):
         return self.client.client_conn
+
+
+def to_dict(obj): #convert any class object to dictionary
+    if not hasattr(obj, 'type'): return
+    dict = {}
+    for field in obj.__slots__:
+        dict[field] = getattr(obj, field)
+        if field == "type":
+            dict[field] = getattr(obj, field).value
+    return dict
+
+def from_dict(dict): #create class object from given dictionary
+    if not 'type' in dict: return
+    obj = globals()[dict['type']]()
+    for field in dict:
+        setattr(obj, field, dict[field])
+        if field == 'type':
+            setattr(obj, field, NAMDtype(dict[field]))
+    return obj

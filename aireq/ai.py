@@ -6,14 +6,13 @@ class g4fai(object): #base static class for implementing g4f requests with conte
     provider=None
     @staticmethod
     def send_req(messages):
-        if (g4fai.init):
-            response = g4f.ChatCompletion.create(
-                model=g4fai.model,
-                provider=g4fai.provider, #later with asyncio all providers simultaneously
-                messages=messages,
-            )
-            return response
-        else: return "g4f was not inited"
+        if not g4fai.init: return "g4f was not inited"
+        response = g4f.ChatCompletion.create(
+            model=g4fai.model,
+            provider=g4fai.provider, #later with asyncio all providers simultaneously
+            messages=messages,
+        )
+        return response
 
 def ask(messages): #main function to ask g4f (later g4f or openai, depends on init)
     return g4fai.send_req(messages=messages)
