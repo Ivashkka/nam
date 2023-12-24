@@ -2,17 +2,23 @@ import socket
 import json
 import uuid
 import datastruct
+import bcrypt
+from getpass import getpass
+from dataload import dload
 
 class _NAMclient(object): #basic clientside networking structure
     init = False
     client_sock = None
-    encoding = 'utf-8'
-    server_ip = '127.0.0.1'
-    server_port = 9090
+    encoding = None
+    server_ip = None
+    server_port = None
 
     @staticmethod
-    def init_socket(): #create socket
+    def init_socket(server_ip, server_port, encoding): #create socket
         _NAMclient.client_sock = socket.socket()
+        _NAMclient.server_ip = server_ip
+        _NAMclient.server_port = server_port
+        _NAMclient.encoding = encoding
         _NAMclient.init = True
 
     @staticmethod
@@ -31,12 +37,13 @@ class _NAMclient(object): #basic clientside networking structure
         if not _NAMclient.init: return
         return _NAMclient.client_sock.send(json.dumps(data).encode(encoding=_NAMclient.encoding))
 
-
 def main():
-    _NAMclient.init_socket()
+    salt = b'$2b$12$ET4oX.YJCrU9OX92KWW2Ku'
+    client_conf = dload.load_yaml("conf.yaml")["nam_client"]
+    _NAMclient.init_socket(client_conf["server_ip"], client_conf["server_port"], client_conf["encoding"])
     user_name = input("user_name: ")
-    user_id = input("user_id: ")
-    auth_data = datastruct.NAMuser(user_name, user_id)
+    user_pass = getpass("user_id: ").encode(encoding=_NAMclient.encoding)
+    auth_data = datastruct.NAMuser(name=user_name, pass_hash=bcrypt.hashpw(user_pass, salt).decode(), uuid=None)
     _NAMclient.connect_to_srv(auth_data=datastruct.to_dict(auth_data))
     while True:
         message = datastruct.AIrequest(input("request: "), uuid.uuid4().hex)

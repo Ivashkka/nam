@@ -8,10 +8,11 @@ class NAMDtype(enum.Enum): # primary key to transfer data between server and cli
 #basic classes for user, response, request and session:
 
 class NAMuser:
-    __slots__ = ['type', 'name', 'uuid']
-    def __init__(self=None, name=None, uuid=None):
+    __slots__ = ['type', 'name', 'pass_hash', 'uuid']
+    def __init__(self=None, name=None, pass_hash=None, uuid=None):
         self.type = NAMDtype.NAMuser
         self.name = name
+        self.pass_hash = pass_hash
         self.uuid = uuid
 
 class AIrequest:

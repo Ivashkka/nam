@@ -1,0 +1,9 @@
+nam_server:
+  ip: 127.0.0.1
+  port: 9090
+  encoding: utf-8
+  clients_count: 2
+nam_client:
+  server_ip: 127.0.0.1
+  server_port: 9090
+  encoding: utf-8

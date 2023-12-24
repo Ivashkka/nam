@@ -4,15 +4,20 @@ import json
 class _NAMserver(object):#basic serverside networking structure
     bind = False
     nam_sock = None
-    ip = '127.0.0.1'
-    port = 9090
-    encoding = 'utf-8'
+    ip = None
+    port = None
+    encoding = None
+    clients_count = None
 
     @staticmethod
-    def bind_socket(): # create socket and bind to port
+    def bind_socket(ip, port, encoding, clients_count): # create socket and bind to port
         _NAMserver.nam_sock = socket.socket()
-        _NAMserver.nam_sock.bind((_NAMserver.ip, _NAMserver.port))
-        _NAMserver.nam_sock.listen(3)
+        _NAMserver.nam_sock.bind((ip, port))
+        _NAMserver.nam_sock.listen(clients_count)
+        _NAMserver.ip = ip
+        _NAMserver.port = port
+        _NAMserver.encoding = encoding
+        _NAMserver.clients_count = clients_count
         _NAMserver.bind = True
 
     @staticmethod
@@ -34,8 +39,8 @@ class _NAMserver(object):#basic serverside networking structure
         if not _NAMserver.bind: return
         client_conn.send(json.dumps(data).encode(encoding=_NAMserver.encoding))
 
-def start_server():
-    _NAMserver.bind_socket()
+def start_server(params_dict):
+    _NAMserver.bind_socket(params_dict["ip"], params_dict["port"], params_dict["encoding"], params_dict["clients_count"])
 
 def wait_for_conn():
     return _NAMserver.wait_for_conn()
@@ -45,3 +50,6 @@ def get_data(client_conn, bytes):
 
 def send_data(client_conn, data):
     _NAMserver.send_data(client_conn, data)
+
+def get_encoding():
+    return _NAMserver.encoding

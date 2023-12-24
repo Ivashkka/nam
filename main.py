@@ -4,7 +4,9 @@ import weakref
 from intapi import listen
 from threading import Thread
 from aireq import ai
+from dataload import dload
 
+known_users = []
 user_sessions = []
 
 def open_new_session(client):
@@ -26,13 +28,21 @@ def session_thread(session_id):
 
 def main():
     while True:
+        salt = b'$2b$12$ET4oX.YJCrU9OX92KWW2Ku'
         conn = listen.wait_for_conn()
         auth = datastruct.from_dict(conn["data"])
         if auth.type == datastruct.NAMDtype.NAMuser:
-            client = datastruct.NAMconnection(uuid.uuid4().hex, auth, conn["client_conn"], conn["client_addr"]) # info about client
-            open_new_session(client=client)
+            for usr in known_users:
+                if(usr.name == auth.name and usr.pass_hash == auth.pass_hash):
+                    client = datastruct.NAMconnection(uuid.uuid4().hex, usr, conn["client_conn"], conn["client_addr"]) # info about client
+                    open_new_session(client=client)
+                    break
 
 if __name__ == "__main__":
     ai.initg4f()
-    listen.start_server()
+    server_conf = dload.load_yaml("conf.yaml")["nam_server"]
+    listen.start_server(server_conf)
+    users_data = dload.load_json("users.json")
+    for usr in users_data:
+        known_users.append(datastruct.from_dict(usr))
     main()
