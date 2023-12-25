@@ -42,7 +42,7 @@ def main():
     client_conf = dload.load_yaml("conf.yaml")["nam_client"]
     _NAMclient.init_socket(client_conf["server_ip"], client_conf["server_port"], client_conf["encoding"])
     user_name = input("user_name: ")
-    user_pass = getpass("user_id: ").encode(encoding=_NAMclient.encoding)
+    user_pass = getpass("user_pass: ").encode(encoding=_NAMclient.encoding)
     auth_data = datastruct.NAMuser(name=user_name, pass_hash=bcrypt.hashpw(user_pass, salt).decode(), uuid=None)
     _NAMclient.connect_to_srv(auth_data=datastruct.to_dict(auth_data))
     while True:

@@ -39,13 +39,15 @@ class NAMconnection:
 
 class NAMsession:
     __slots__ = ['uuid', 'client', 'thread', 'messages_history', 'text_history', '__weakref__']
+    count = 0
     def __init__(self, uuid, client, thread):
         self.uuid = uuid
         self.client = client
         self.thread = thread
         self.messages_history = [] #list of objects of type message
         self.text_history = [] #list of dictionaries for g4f requests
-    
+        NAMsession.count += 1
+
     def add_message(self, message):
         self.messages_history.append(message)
         match message.type:
