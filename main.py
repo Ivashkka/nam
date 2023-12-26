@@ -22,8 +22,7 @@ class _NAMcore(object):
         _NAMcore.server_manage_thread=Thread(target=_NAMcore.server_manage, args=[])
         _NAMcore.server_manage_thread.start()
         _NAMcore.serve_connections()
-        pass
-    
+
     @staticmethod
     def start_listen_server():
         server_conf = dload.load_yaml("conf.yaml")["nam_server"]
@@ -53,18 +52,19 @@ class _NAMcore(object):
     def serve_connections():
         while True:
             conn = listen.wait_for_conn()
-            auth = datastruct.from_dict(conn["data"])
-            if auth.type == datastruct.NAMDtype.NAMuser:
+            auth = datastruct.from_dict(conn["auth_data"])
+            sett = datastruct.from_dict(conn["settings"])
+            if auth.type == datastruct.NAMDtype.NAMuser and sett.type == datastruct.NAMDtype.NAMSesSettings:
                 for usr in _NAMcore.known_users:
                     if(usr.name == auth.name and usr.pass_hash == auth.pass_hash):
                         client = datastruct.NAMconnection(uuid.uuid4().hex, usr, conn["client_conn"], conn["client_addr"]) # info about client
-                        _NAMcore.open_new_session(client=client)
+                        _NAMcore.open_new_session(client=client, settings=sett)
                         break
 
     @staticmethod
-    def open_new_session(client):
+    def open_new_session(client, settings):
         ses_list_id = len(_NAMcore.user_sessions) #will be used to access original session object in list
-        ses = datastruct.NAMsession(uuid=uuid.uuid4().hex, client=client, thread=Thread(target=_NAMcore.session_thread, args=[ses_list_id]))
+        ses = datastruct.NAMsession(uuid=uuid.uuid4().hex, client=client, settings=settings, thread=Thread(target=_NAMcore.session_thread, args=[ses_list_id]))
         _NAMcore.user_sessions.append(ses)
         _NAMcore.user_sessions[ses_list_id].thread.start()
         return weakref.ref(_NAMcore.user_sessions[ses_list_id])
@@ -76,7 +76,7 @@ class _NAMcore(object):
             data = datastruct.from_dict(listen.get_data(ses_ref().get_client_conn(), 1024)) #get request
             if data.type == datastruct.NAMDtype.AIrequest:
                 ses_ref().add_message(data) #add request to session history
-                ai_resp = datastruct.AIresponse(message=ai.ask(ses_ref().text_history), uuid=uuid.uuid4().hex) #ask g4f
+                ai_resp = datastruct.AIresponse(message=ai.ask(ses_ref().text_history, ses_ref().settings.model.value), uuid=uuid.uuid4().hex) #ask g4f
                 ses_ref().add_message(ai_resp) #add response to session history
                 listen.send_data(ses_ref().get_client_conn(), data=datastruct.to_dict(ai_resp)) #send response to the user
 
