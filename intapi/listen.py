@@ -27,7 +27,7 @@ class _NAMserver(object):#basic serverside networking structure
         client_conn.settimeout(3) #timeout of session for 3 second if no auth data received 
         data = _NAMserver.get_data(client_conn, 1024)
         client_conn.settimeout(None)
-        return {"client_addr": client_addr, "client_conn": client_conn, "data": data}
+        return {"client_addr": client_addr, "client_conn": client_conn, "auth_data": data["auth_data"], "settings": data["settings"]}
 
     @staticmethod
     def get_data(client_conn, bytes):
