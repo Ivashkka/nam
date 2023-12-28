@@ -1,4 +1,5 @@
 import enum
+import uuid as ud
 
 class NAMDtype(enum.Enum): # primary key to transfer data between server and client
     AIrequest       =   "AIrequest"
@@ -16,7 +17,7 @@ class AImodels(enum.Enum):
 
 class NAMuser:
     __slots__ = ['type', 'name', 'pass_hash', 'uuid']
-    def __init__(self, name=None, pass_hash=None, uuid=None):
+    def __init__(self, name=None, pass_hash=None, uuid=ud.uuid4().hex):
         self.type = NAMDtype.NAMuser
         self.name = name
         self.pass_hash = pass_hash
@@ -24,14 +25,14 @@ class NAMuser:
 
 class AIrequest:
     __slots__ = ['message', 'uuid', 'type']
-    def __init__(self, message=None, uuid=None):
+    def __init__(self, message=None, uuid=ud.uuid4().hex):
         self.message = message
         self.uuid = uuid
         self.type = NAMDtype.AIrequest
 
 class AIresponse:
     __slots__ = ['message', 'uuid', 'type']
-    def __init__(self, message=None, uuid=None):
+    def __init__(self, message=None, uuid=ud.uuid4().hex):
         self.message = message
         self.uuid = uuid
         self.type = NAMDtype.AIresponse
@@ -44,7 +45,7 @@ class NAMSesSettings:
 
 class NAMconnection:
     __slots__ = ['uuid', 'user', 'client_conn', 'client_addr']
-    def __init__(self, uuid, user, client_conn, client_addr):
+    def __init__(self, user, client_conn, client_addr, uuid=ud.uuid4().hex):
         self.uuid = uuid
         self.user = user
         self.client_addr = client_addr
@@ -53,7 +54,7 @@ class NAMconnection:
 class NAMsession:
     __slots__ = ['uuid', 'client', 'settings', 'thread', 'messages_history', 'text_history', '__weakref__']
     count = 0
-    def __init__(self, uuid, client, settings, thread):
+    def __init__(self, client, settings, thread, uuid=ud.uuid4().hex):
         self.uuid = uuid
         self.client = client
         self.settings = settings
@@ -82,22 +83,26 @@ class NAMsession:
         return self.client.client_conn
 
 
-def to_dict(obj): #convert any class object to dictionary
-    if not hasattr(obj, 'type'): return
+def to_dict(obj, save_uuid=False): #convert any class object to dictionary
+    if not hasattr(obj, 'type'): return None
     dict = {}
     for field in obj.__slots__:
-        dict[field] = getattr(obj, field)
+        if field == 'uuid' and not save_uuid: continue
         if field == 'type' or field == 'model':
             dict[field] = getattr(obj, field).value
+            continue
+        dict[field] = getattr(obj, field)
     return dict
 
 def from_dict(dict): #create class object from given dictionary
-    if not 'type' in dict: return
+    if dict == None or not 'type' in dict: return None
     obj = globals()[dict['type']]()
     for field in dict:
-        setattr(obj, field, dict[field])
         if field == 'type':
             setattr(obj, field, NAMDtype(dict[field]))
+            continue
         if field == 'model':
             setattr(obj, field, AImodels(dict[field]))
+            continue
+        setattr(obj, field, dict[field])
     return obj

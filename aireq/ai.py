@@ -35,6 +35,6 @@ def ask(messages, model): #main function to ask g4f (later g4f or openai, depend
 def initg4f(settings): #init g4f: set base parameters and toggle g4f on (later g4f or openai)
     g4f.debug.logging = False  # Disable debug logging
     g4f.debug.check_version = False  # Disable automatic version checking
-    for prov in settings["g4f_settings"]["providers"]:
+    for prov in settings["providers"]:
         _G4Fai.providers.append(getattr(g4f.Provider, prov))
     _G4Fai.init=True

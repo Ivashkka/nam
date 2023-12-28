@@ -1,4 +1,3 @@
-import uuid
 import datastruct
 import weakref
 import bcrypt
@@ -27,8 +26,8 @@ class _NAMcore(object):
 
     @staticmethod
     def init_ai():
-        ai_conf = dload.load_yaml("conf.yaml")["ai_settings"]
-        ai.initg4f(ai_conf)
+        ai_g4f_conf = dload.load_yaml("conf.yaml")["ai_settings"]["g4f_settings"]
+        ai.initg4f(ai_g4f_conf)
 
     @staticmethod
     def start_listen_server():
@@ -45,14 +44,14 @@ class _NAMcore(object):
     def save_users():
         users_dictlist = []
         for usr in _NAMcore.known_users:
-            users_dictlist.append(datastruct.to_dict(usr))
+            users_dictlist.append(datastruct.to_dict(usr, save_uuid=True))
         dload.save_json("users.json", users_dictlist)
 
     @staticmethod
     def create_user():
         name = input("user name: ")
         passwd = getpass("password: ").encode(encoding=listen.get_encoding())
-        usr = datastruct.NAMuser(uuid=uuid.uuid4().hex, name=name, pass_hash=bcrypt.hashpw(passwd, _NAMcore.salt).decode())
+        usr = datastruct.NAMuser(name=name, pass_hash=bcrypt.hashpw(passwd, _NAMcore.salt).decode())
         _NAMcore.known_users.append(usr)
 
     @staticmethod
@@ -79,14 +78,14 @@ class _NAMcore(object):
             if auth.type == datastruct.NAMDtype.NAMuser and sett.type == datastruct.NAMDtype.NAMSesSettings:
                 for usr in _NAMcore.known_users:
                     if(usr.name == auth.name and usr.pass_hash == auth.pass_hash):
-                        client = datastruct.NAMconnection(uuid.uuid4().hex, usr, conn["client_conn"], conn["client_addr"]) # info about client
+                        client = datastruct.NAMconnection(usr, conn["client_conn"], conn["client_addr"]) # info about client
                         _NAMcore.open_new_session(client=client, settings=sett)
                         break
 
     @staticmethod
     def open_new_session(client, settings):
         ses_list_id = len(_NAMcore.user_sessions) #will be used to access original session object in list
-        ses = datastruct.NAMsession(uuid=uuid.uuid4().hex, client=client, settings=settings, thread=Thread(target=_NAMcore.session_thread, args=[ses_list_id]))
+        ses = datastruct.NAMsession(client=client, settings=settings, thread=Thread(target=_NAMcore.session_thread, args=[ses_list_id]))
         _NAMcore.user_sessions.append(ses)
         _NAMcore.user_sessions[ses_list_id].thread.start()
         return weakref.ref(_NAMcore.user_sessions[ses_list_id])
@@ -96,14 +95,15 @@ class _NAMcore(object):
         ses_ref = weakref.ref(_NAMcore.user_sessions[session_id]) #ref to the corresponding session object in list
         while True:
             if _NAMcore.stop_event.is_set(): break
-            raw_data = listen.get_data(ses_ref().get_client_conn(), 1024)
-            if raw_data == None: continue
-            data = datastruct.from_dict(raw_data) #get request
+            data = datastruct.from_dict(listen.get_data(ses_ref().get_client_conn(), 1024)) #get request
+            if data == None: continue
             if data.type == datastruct.NAMDtype.AIrequest:
                 ses_ref().add_message(data) #add request to session history
-                ai_resp = datastruct.AIresponse(message=ai.ask(ses_ref().text_history, ses_ref().settings.model.value), uuid=uuid.uuid4().hex) #ask g4f
+                ai_resp = datastruct.AIresponse(message=ai.ask(ses_ref().text_history, ses_ref().settings.model.value)) #ask g4f
                 ses_ref().add_message(ai_resp) #add response to session history
                 listen.send_data(ses_ref().get_client_conn(), data=datastruct.to_dict(ai_resp)) #send response to the user
+            elif data.type == datastruct.NAMDtype.NAMSesSettings:
+                ses_ref().settings = data
 
     @staticmethod
     def show_info():
