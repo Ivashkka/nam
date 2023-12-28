@@ -3,16 +3,8 @@ import asyncio
 
 class _G4Fai(object): #base static class for implementing g4f requests with context (later with different models, depends on clientside)
     init = False
-    model=None
-    providers = [
-        g4f.Provider.FakeGpt,
-        g4f.Provider.ChatBase,
-        g4f.Provider.GeekGpt,
-        g4f.Provider.Liaobots,
-        g4f.Provider.ChatgptAi,
-        g4f.Provider.Bing,
-        g4f.Provider.ChatForAi 
-    ]
+    providers = []
+
     @staticmethod
     async def send_async_req(provider: g4f.Provider.BaseProvider, messages, model):
         if not _G4Fai.init: return "g4f was not inited"
@@ -40,8 +32,9 @@ class _G4Fai(object): #base static class for implementing g4f requests with cont
 def ask(messages, model): #main function to ask g4f (later g4f or openai, depends on init)
     return asyncio.run(_G4Fai.ask_all(messages, getattr(g4f.models, model)))
 
-def initg4f(): #init g4f: set base parameters and toggle g4f on (later g4f or openai)
+def initg4f(settings): #init g4f: set base parameters and toggle g4f on (later g4f or openai)
     g4f.debug.logging = False  # Disable debug logging
     g4f.debug.check_version = False  # Disable automatic version checking
-    _G4Fai.provider=g4f.Provider.ChatgptAi
+    for prov in settings["g4f_settings"]["providers"]:
+        _G4Fai.providers.append(getattr(g4f.Provider, prov))
     _G4Fai.init=True

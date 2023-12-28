@@ -4,6 +4,7 @@ import weakref
 import bcrypt
 from intapi import listen
 from threading import Thread
+from threading import Event
 from aireq import ai
 from getpass import getpass
 from dataload import dload
@@ -13,15 +14,21 @@ class _NAMcore(object):
     known_users = []
     user_sessions = []
     server_manage_thread = None
+    stop_event = Event()
 
     @staticmethod
     def start_core():
-        ai.initg4f()
+        _NAMcore.init_ai()
         _NAMcore.load_users()
         _NAMcore.start_listen_server()
         _NAMcore.server_manage_thread=Thread(target=_NAMcore.server_manage, args=[])
         _NAMcore.server_manage_thread.start()
         _NAMcore.serve_connections()
+
+    @staticmethod
+    def init_ai():
+        ai_conf = dload.load_yaml("conf.yaml")["ai_settings"]
+        ai.initg4f(ai_conf)
 
     @staticmethod
     def start_listen_server():
@@ -49,9 +56,24 @@ class _NAMcore(object):
         _NAMcore.known_users.append(usr)
 
     @staticmethod
+    def delete_user(deleted_user_name):
+        for i in range(0, len(_NAMcore.known_users)):
+            if(_NAMcore.known_users[i].name == deleted_user_name):
+                _NAMcore.known_users.pop(i)
+                break
+
+    @staticmethod
     def serve_connections():
         while True:
+            if _NAMcore.stop_event.is_set():
+                for i in range(0, len(_NAMcore.user_sessions)):
+                    _NAMcore.user_sessions[i].thread.join()
+                    listen.close_conn(_NAMcore.user_sessions[i].client.client_conn)
+                print("done")
+                break
             conn = listen.wait_for_conn()
+            if conn == None:
+                continue
             auth = datastruct.from_dict(conn["auth_data"])
             sett = datastruct.from_dict(conn["settings"])
             if auth.type == datastruct.NAMDtype.NAMuser and sett.type == datastruct.NAMDtype.NAMSesSettings:
@@ -73,7 +95,10 @@ class _NAMcore(object):
     def session_thread(session_id):
         ses_ref = weakref.ref(_NAMcore.user_sessions[session_id]) #ref to the corresponding session object in list
         while True:
-            data = datastruct.from_dict(listen.get_data(ses_ref().get_client_conn(), 1024)) #get request
+            if _NAMcore.stop_event.is_set(): break
+            raw_data = listen.get_data(ses_ref().get_client_conn(), 1024)
+            if raw_data == None: continue
+            data = datastruct.from_dict(raw_data) #get request
             if data.type == datastruct.NAMDtype.AIrequest:
                 ses_ref().add_message(data) #add request to session history
                 ai_resp = datastruct.AIresponse(message=ai.ask(ses_ref().text_history, ses_ref().settings.model.value), uuid=uuid.uuid4().hex) #ask g4f
@@ -104,12 +129,25 @@ class _NAMcore(object):
                             _NAMcore.create_user()
                         case _:
                             print(f"wrong parameter '{command[1]}'")
+                case "delete":
+                    if len(command) < 3:
+                        print("specify what to delete or try help")
+                        continue
+                    match command[1]:
+                        case "user":
+                            _NAMcore.delete_user(command[2])
+                        case _:
+                            print(f"wrong parameter '{command[1]}'")
                 case "info":
                     _NAMcore.show_info()
                 case "save":
                     _NAMcore.save_users()
+                case "stop":
+                    print("nam server is stopping...")
+                    _NAMcore.stop_event.set()
+                    break
                 case "help":
-                    print("create user - create new user\nsave - save all users\ninfo - print all info\nhelp - show this info")
+                    print("create user - create new user\nsave - save all users\ninfo - print all info\nstop - stop server\nhelp - show this info")
                 case "":
                     pass
                 case _:

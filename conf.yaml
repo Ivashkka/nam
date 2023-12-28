@@ -3,3 +3,13 @@ nam_server:
   port: 9090
   encoding: utf-8
   clients_count: 2
+ai_settings:
+  g4f_settings:
+    providers:
+      - FakeGpt
+      - ChatBase
+      - GeekGpt
+      - Liaobots
+      - ChatgptAi
+      - Bing
+      - ChatForAi
