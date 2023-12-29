@@ -87,23 +87,33 @@ class _NAMcore(object):
         ses_list_id = len(_NAMcore.user_sessions) #will be used to access original session object in list
         ses = datastruct.NAMsession(client=client, settings=settings, thread=Thread(target=_NAMcore.session_thread, args=[ses_list_id]))
         _NAMcore.user_sessions.append(ses)
+        _NAMcore.user_sessions[ses_list_id].thread.name = f"{_NAMcore.user_sessions[ses_list_id].uuid[0:6]}_session_thread"
         _NAMcore.user_sessions[ses_list_id].thread.start()
         return weakref.ref(_NAMcore.user_sessions[ses_list_id])
 
     @staticmethod
     def session_thread(session_id):
         ses_ref = weakref.ref(_NAMcore.user_sessions[session_id]) #ref to the corresponding session object in list
+        aireq_thread = None
         while True:
-            if _NAMcore.stop_event.is_set(): break
+            if _NAMcore.stop_event.is_set():
+                if aireq_thread != None: aireq_thread.join()
+                break
             data = datastruct.from_dict(listen.get_data(ses_ref().get_client_conn(), 1024)) #get request
             if data == None: continue
             if data.type == datastruct.NAMDtype.AIrequest:
-                ses_ref().add_message(data) #add request to session history
-                ai_resp = datastruct.AIresponse(message=ai.ask(ses_ref().text_history, ses_ref().settings.model.value)) #ask g4f
-                ses_ref().add_message(ai_resp) #add response to session history
-                listen.send_data(ses_ref().get_client_conn(), data=datastruct.to_dict(ai_resp)) #send response to the user
+                if aireq_thread != None: aireq_thread.join()
+                aireq_thread = Thread(target=_NAMcore.get_ai_resp_thread, args=[ses_ref, data])
+                aireq_thread.name = f"{ses_ref().uuid[0:6]}_child_thread"
+                aireq_thread.start()
             elif data.type == datastruct.NAMDtype.NAMSesSettings:
                 ses_ref().settings = data
+            
+    def get_ai_resp_thread(ses_ref, req):
+        ses_ref().add_message(req) #add request to session history
+        ai_resp = datastruct.AIresponse(message=ai.ask(ses_ref().text_history, ses_ref().settings.model.value)) #ask g4f
+        ses_ref().add_message(ai_resp) #add response to session history
+        listen.send_data(ses_ref().get_client_conn(), data=datastruct.to_dict(ai_resp)) #send response to the user
 
     @staticmethod
     def show_info():
