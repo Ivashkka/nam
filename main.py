@@ -7,6 +7,7 @@ from threading import Event
 from aireq import ai
 from getpass import getpass
 from dataload import dload
+import signal
 
 class _NAMcore(object):
     salt = b'$2b$12$ET4oX.YJCrU9OX92KWW2Ku'
@@ -17,12 +18,18 @@ class _NAMcore(object):
 
     @staticmethod
     def start_core():
+        signal.signal(signal.SIGTERM, _NAMcore.sigterm_handler)
         _NAMcore.init_ai()
         _NAMcore.load_users()
         _NAMcore.start_listen_server()
         _NAMcore.server_manage_thread=Thread(target=_NAMcore.server_manage, args=[])
         _NAMcore.server_manage_thread.start()
         _NAMcore.serve_connections()
+
+    @staticmethod
+    def sigterm_handler(signal, frame):
+        print('Received SIGTERM. Exiting gracefully...')
+        _NAMcore.stop_event.set()
 
     @staticmethod
     def init_ai():
@@ -70,6 +77,8 @@ class _NAMcore(object):
                     listen.close_conn(_NAMcore.user_sessions[i].client.client_conn)
                 print("done")
                 break
+            while _NAMcore.find_dead_ses():
+                pass
             conn = listen.wait_for_conn()
             if conn == None:
                 continue
@@ -81,6 +90,17 @@ class _NAMcore(object):
                         client = datastruct.NAMconnection(usr, conn["client_conn"], conn["client_addr"]) # info about client
                         _NAMcore.open_new_session(client=client, settings=sett)
                         break
+
+    @staticmethod
+    def find_dead_ses():
+        for i in range(0, len(_NAMcore.user_sessions)):
+            if not _NAMcore.user_sessions[i].thread.is_alive():
+                listen.close_conn(_NAMcore.user_sessions[i].client.client_conn)
+                _NAMcore.user_sessions.pop(i)
+                datastruct.NAMsession.count -= 1
+                return True
+        else:
+            return False
 
     @staticmethod
     def open_new_session(client, settings):
@@ -96,22 +116,35 @@ class _NAMcore(object):
         ses_ref = weakref.ref(_NAMcore.user_sessions[session_id]) #ref to the corresponding session object in list
         aireq_thread = None
         while True:
-            if _NAMcore.stop_event.is_set():
+            conn_alive = listen.check_if_alive(ses_ref().get_client_conn(), datastruct.to_dict(datastruct.NAMcommand(datastruct.NAMCtype.TestConn)))
+            if _NAMcore.stop_event.is_set() or not conn_alive:
                 if aireq_thread != None: aireq_thread.join()
                 break
             data = datastruct.from_dict(listen.get_data(ses_ref().get_client_conn(), 1024)) #get request
             if data == None: continue
             if data.type == datastruct.NAMDtype.AIrequest:
-                if aireq_thread != None: aireq_thread.join()
+                if aireq_thread != None and aireq_thread.is_alive():
+                    wait_resp = datastruct.AIresponse(message="wait for the answer to the previous question")
+                    listen.send_data(ses_ref().get_client_conn(), data=datastruct.to_dict(wait_resp))
+                    continue
                 aireq_thread = Thread(target=_NAMcore.get_ai_resp_thread, args=[ses_ref, data])
                 aireq_thread.name = f"{ses_ref().uuid[0:6]}_child_thread"
                 aireq_thread.start()
             elif data.type == datastruct.NAMDtype.NAMSesSettings:
                 ses_ref().settings = data
-            
+            elif data.type == datastruct.NAMDtype.NAMcommand:
+                if data.command == datastruct.NAMCtype.ContextReset:
+                    if aireq_thread != None and aireq_thread.is_alive():
+                        wait_resp = datastruct.AIresponse(message="wait for the answer to the previous question")
+                        listen.send_data(ses_ref().get_client_conn(), data=datastruct.to_dict(wait_resp))
+                    else:
+                        ses_ref().reset_context()
+                        ok_resp = datastruct.AIresponse(message="context deleted")
+                        listen.send_data(ses_ref().get_client_conn(), data=datastruct.to_dict(ok_resp))
+
     def get_ai_resp_thread(ses_ref, req):
         ses_ref().add_message(req) #add request to session history
-        ai_resp = datastruct.AIresponse(message=ai.ask(ses_ref().text_history, ses_ref().settings.model.value)) #ask g4f
+        ai_resp = datastruct.AIresponse(message=ai.ask(ses_ref().get_text_history(), ses_ref().settings.model.value)) #ask g4f
         ses_ref().add_message(ai_resp) #add response to session history
         listen.send_data(ses_ref().get_client_conn(), data=datastruct.to_dict(ai_resp)) #send response to the user
 

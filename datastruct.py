@@ -6,6 +6,11 @@ class NAMDtype(enum.Enum): # primary key to transfer data between server and cli
     AIresponse      =   "AIresponse"
     NAMuser         =   "NAMuser"
     NAMSesSettings  =   "NAMSesSettings"
+    NAMcommand      =   "NAMcommand"
+
+class NAMCtype(enum.Enum):
+    ContextReset    =   "ContextReset"
+    TestConn        =   "TestConn"
 
 class AImodels(enum.Enum):
     GPT35turbo  =   "gpt_35_turbo"
@@ -43,6 +48,12 @@ class NAMSesSettings:
         self.model = model
         self.type = NAMDtype.NAMSesSettings
 
+class NAMcommand:
+    __slots__ = ['command', 'type']
+    def __init__(self, command=None):
+        self.command = command
+        self.type = NAMDtype.NAMcommand
+
 class NAMconnection:
     __slots__ = ['uuid', 'user', 'client_conn', 'client_addr']
     def __init__(self, user, client_conn, client_addr, uuid=ud.uuid4().hex):
@@ -52,7 +63,7 @@ class NAMconnection:
         self.client_conn = client_conn
 
 class NAMsession:
-    __slots__ = ['uuid', 'client', 'settings', 'thread', 'messages_history', 'text_history', '__weakref__']
+    __slots__ = ['uuid', 'client', 'settings', 'thread', 'messages_history', '__weakref__']
     count = 0
     def __init__(self, client, settings, thread, uuid=ud.uuid4().hex):
         self.uuid = uuid
@@ -60,18 +71,25 @@ class NAMsession:
         self.settings = settings
         self.thread = thread
         self.messages_history = [] #list of objects of type message
-        self.text_history = [] #list of dictionaries for g4f requests
         NAMsession.count += 1
 
     def add_message(self, message):
         self.messages_history.append(message)
-        match message.type:
-            case NAMDtype.AIrequest:
-                self.text_history.append({"role": "user", "content": message.message})
-            case NAMDtype.AIresponse:
-                self.text_history.append({"role": "assistant", "content": message.message})
-            case _:
-                pass
+
+    def get_text_history(self):
+        text_history = []
+        for mes in self.messages_history:
+            match mes.type:
+                case NAMDtype.AIrequest:
+                    text_history.append({"role": "user", "content": mes.message})
+                case NAMDtype.AIresponse:
+                    text_history.append({"role": "assistant", "content": mes.message})
+                case _:
+                    pass
+        return text_history
+
+    def reset_context(self):
+        self.messages_history = []
 
     def get_username(self):
         return self.client.user.name
@@ -88,7 +106,7 @@ def to_dict(obj, save_uuid=False): #convert any class object to dictionary
     dict = {}
     for field in obj.__slots__:
         if field == 'uuid' and not save_uuid: continue
-        if field == 'type' or field == 'model':
+        if field == 'type' or field == 'model' or field == 'command':
             dict[field] = getattr(obj, field).value
             continue
         dict[field] = getattr(obj, field)
@@ -103,6 +121,9 @@ def from_dict(dict): #create class object from given dictionary
             continue
         if field == 'model':
             setattr(obj, field, AImodels(dict[field]))
+            continue
+        if field == 'command':
+            setattr(obj, field, NAMCtype(dict[field]))
             continue
         setattr(obj, field, dict[field])
     return obj

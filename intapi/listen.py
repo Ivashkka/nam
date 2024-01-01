@@ -42,8 +42,20 @@ class _NAMserver(object):#basic serverside networking structure
 
     @staticmethod
     def send_data(client_conn, data):
-        if not _NAMserver.bind: return
-        client_conn.send(json.dumps(data).encode(encoding=_NAMserver.encoding))
+        try:
+            if not _NAMserver.bind: return
+            client_conn.send(json.dumps(data).encode(encoding=_NAMserver.encoding))
+        except Exception as e:
+            return None
+
+    @staticmethod
+    def check_conn(client_conn, test_data):
+        try:
+            if not _NAMserver.bind: return
+            client_conn.send(json.dumps(test_data).encode(encoding=_NAMserver.encoding))
+        except ConnectionResetError:
+            return False
+        return True
 
     @staticmethod
     def close_conn(client_conn):
@@ -64,6 +76,9 @@ def get_data(client_conn, bytes):
 
 def send_data(client_conn, data):
     _NAMserver.send_data(client_conn, data)
+
+def check_if_alive(client_conn, test_data):
+    return _NAMserver.check_conn(client_conn, test_data)
 
 def get_encoding():
     return _NAMserver.encoding

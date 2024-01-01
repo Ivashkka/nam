@@ -6,10 +6,9 @@ nam_server:
 ai_settings:
   g4f_settings:
     providers:
+      - Bing
       - FakeGpt
-      - ChatBase
       - GeekGpt
       - Liaobots
       - ChatgptAi
-      - Bing
       - ChatForAi
