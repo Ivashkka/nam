@@ -8,6 +8,7 @@ from aireq import ai
 from getpass import getpass
 from dataload import dload
 import signal
+import setproctitle
 
 class _NAMcore(object):
     salt = b'$2b$12$ET4oX.YJCrU9OX92KWW2Ku'
@@ -19,6 +20,7 @@ class _NAMcore(object):
     @staticmethod
     def start_core():
         signal.signal(signal.SIGTERM, _NAMcore.sigterm_handler)
+        setproctitle.setproctitle('nam_server_python')
         _NAMcore.init_ai()
         _NAMcore.load_users()
         _NAMcore.start_listen_server()
@@ -161,7 +163,8 @@ class _NAMcore(object):
     @staticmethod
     def server_manage():
         while True:
-            command = input("nam> ").split(" ")
+            print("nam> ", end="")
+            command = input().split(" ")
             match command[0]:
                 case "create":
                     if len(command) < 2:
@@ -183,6 +186,8 @@ class _NAMcore(object):
                             print(f"wrong parameter '{command[1]}'")
                 case "info":
                     _NAMcore.show_info()
+                case "status":
+                    print(f"running\nCurrent sessions - {datastruct.NAMsession.count}")
                 case "save":
                     _NAMcore.save_users()
                 case "stop":
@@ -190,7 +195,7 @@ class _NAMcore(object):
                     _NAMcore.stop_event.set()
                     break
                 case "help":
-                    print("create user - create new user\nsave - save all users\ninfo - print all info\nstop - stop server\nhelp - show this info")
+                    print("create user - create new user\nsave - save all users\ninfo - print all info\nstatus - print short info\ndelete user <name> - delete user\nstop - stop server\nhelp - show this info")
                 case "":
                     pass
                 case _:

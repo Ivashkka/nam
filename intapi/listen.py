@@ -23,7 +23,7 @@ class _NAMserver(object):#basic serverside networking structure
 
     @staticmethod
     def wait_for_conn(): # listen for incoming connections and auth data right after it
-        if not _NAMserver.bind: return {"corrupted": "server was not inited"}
+        if not _NAMserver.bind: return None
         try:
             client_conn, client_addr = _NAMserver.nam_sock.accept()
             client_conn.settimeout(3) #session's timeout for 3 second
@@ -34,24 +34,24 @@ class _NAMserver(object):#basic serverside networking structure
 
     @staticmethod
     def get_data(client_conn, bytes):
+        if not _NAMserver.bind: return None
         try:
-            if not _NAMserver.bind: return {"corrupted": "server was not inited"}
             return json.loads(client_conn.recv(bytes).decode())
         except Exception as e:
             return None
 
     @staticmethod
     def send_data(client_conn, data):
+        if not _NAMserver.bind: return None
         try:
-            if not _NAMserver.bind: return
             client_conn.send(json.dumps(data).encode(encoding=_NAMserver.encoding))
         except Exception as e:
             return None
 
     @staticmethod
     def check_conn(client_conn, test_data):
+        if not _NAMserver.bind: return None
         try:
-            if not _NAMserver.bind: return
             client_conn.send(json.dumps(test_data).encode(encoding=_NAMserver.encoding))
         except ConnectionResetError:
             return False
@@ -59,7 +59,7 @@ class _NAMserver(object):#basic serverside networking structure
 
     @staticmethod
     def close_conn(client_conn):
-        if not _NAMserver.bind: return
+        if not _NAMserver.bind: return None
         client_conn.close()
 
 def start_server(params_dict):
