@@ -17,6 +17,8 @@ class _NAMcore(object):
     server_manage_thread = None
     stop_event = Event()
 
+    INTERACT = True #will change in future
+
     @staticmethod
     def start_core():
         signal.signal(signal.SIGTERM, _NAMcore.sigterm_handler)
@@ -77,6 +79,7 @@ class _NAMcore(object):
                 for i in range(0, len(_NAMcore.user_sessions)):
                     _NAMcore.user_sessions[i].thread.join()
                     listen.close_conn(_NAMcore.user_sessions[i].client.client_conn)
+                if not _NAMcore.INTERACT: listen.close_local_sock()
                 print("done")
                 break
             while _NAMcore.find_dead_ses():
@@ -122,7 +125,7 @@ class _NAMcore(object):
             if _NAMcore.stop_event.is_set() or not conn_alive:
                 if aireq_thread != None: aireq_thread.join()
                 break
-            data = datastruct.from_dict(listen.get_data(ses_ref().get_client_conn(), 1024)) #get request
+            data = datastruct.from_dict(listen.get_data(ses_ref().get_client_conn(), 4096)) #get request
             if data == None: continue
             if data.type == datastruct.NAMDtype.AIrequest:
                 if aireq_thread != None and aireq_thread.is_alive():
@@ -163,43 +166,54 @@ class _NAMcore(object):
     @staticmethod
     def server_manage():
         while True:
-            print("nam> ", end="")
-            command = input().split(" ")
+            if not _NAMcore.INTERACT:
+                ctl_conn = listen.get_ctl_connect()
+                command = listen.get_ctl_command(ctl_conn).split(" ")
+            else:
+                print("nam> ", end="")
+                command = input().split(" ")
+            answer = ""
             match command[0]:
                 case "create":
                     if len(command) < 2:
-                        print("specify what to create or try help")
+                        answer = "specify what to create or try help"
                         continue
                     match command[1]:
                         case "user":
                             _NAMcore.create_user()
                         case _:
-                            print(f"wrong parameter '{command[1]}'")
+                            answer = f"wrong parameter '{command[1]}'"
                 case "delete":
                     if len(command) < 3:
-                        print("specify what to delete or try help")
+                        answer = "specify what to delete or try help"
                         continue
                     match command[1]:
                         case "user":
                             _NAMcore.delete_user(command[2])
                         case _:
-                            print(f"wrong parameter '{command[1]}'")
+                            answer = f"wrong parameter '{command[1]}'"
                 case "info":
                     _NAMcore.show_info()
                 case "status":
-                    print(f"running\nCurrent sessions - {datastruct.NAMsession.count}")
+                    answer = f"running\nCurrent sessions - {datastruct.NAMsession.count}"
                 case "save":
                     _NAMcore.save_users()
                 case "stop":
                     print("nam server is stopping...")
                     _NAMcore.stop_event.set()
+                    if not _NAMcore.INTERACT: listen.close_ctl_conn(ctl_conn)
                     break
                 case "help":
-                    print("create user - create new user\nsave - save all users\ninfo - print all info\nstatus - print short info\ndelete user <name> - delete user\nstop - stop server\nhelp - show this info")
+                    answer = "create user - create new user\nsave - save all users\ninfo - print all info\nstatus - print short info\ndelete user <name> - delete user\nstop - stop server\nhelp - show this info"
                 case "":
                     pass
                 case _:
-                    print(f"wrong parameter '{command[0]}'")
+                    answer = f"wrong parameter '{command[0]}'"
+            if not _NAMcore.INTERACT:
+                listen.send_ctl_answer(ctl_conn, answer)
+                listen.close_ctl_conn(ctl_conn)
+            else:
+                if answer != "": print(answer)
 
 def main():
     _NAMcore.start_core()
