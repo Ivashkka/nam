@@ -5,24 +5,30 @@ from intapi import listen
 from threading import Thread
 from threading import Event
 from aireq import ai
-from getpass import getpass
 from dataload import dload
 import signal
 import setproctitle
+import sys
 
 class _NAMcore(object):
     salt = b'$2b$12$ET4oX.YJCrU9OX92KWW2Ku'
+    conf_yaml = "conf.yaml"
+    users_json = "users.json"
     known_users = []
     user_sessions = []
     server_manage_thread = None
     stop_event = Event()
 
-    INTERACT = True #will change in future
+    commads_dict = {"create user":"create_user", "delete user":"delete_user", "info":"show_info",
+                    "status":"show_status", "save":"save_users", "stop":"stop_all", "help":"show_help"}
+
+    INTERACT = False #will change in future
 
     @staticmethod
     def start_core():
         signal.signal(signal.SIGTERM, _NAMcore.sigterm_handler)
         setproctitle.setproctitle('nam_server_python')
+        _NAMcore.solve_cli_args()
         _NAMcore.init_ai()
         _NAMcore.load_users()
         _NAMcore.start_listen_server()
@@ -31,46 +37,55 @@ class _NAMcore(object):
         _NAMcore.serve_connections()
 
     @staticmethod
+    def solve_cli_args():
+        if "interact" in sys.argv:
+            _NAMcore.INTERACT = True
+        if len(sys.argv) > 1:
+            if dload.load_txt(str(sys.argv[1])+"/conf.yaml") != None:
+                _NAMcore.conf_yaml = str(sys.argv[1])+"/conf.yaml"
+                _NAMcore.users_json = str(sys.argv[1])+"/users.json"
+            else:
+                if str(sys.argv[1]) != "interact": raise Exception(f"can't find conf.yaml in {sys.argv[1]} dir!")
+
+    @staticmethod
+    def send_output(data, ctl_conn = None):
+        if ctl_conn == None:
+            print(data)
+        else:
+            listen.send_ctl_answer(ctl_conn, data)
+
+    @staticmethod
+    def get_input(prompt = "nam> ", ctl_conn = None):
+        if ctl_conn == None:
+            print(prompt, end="")
+            return input()
+        elif ctl_conn != None:
+            _NAMcore.send_output(f"IEN {prompt}", ctl_conn)
+            return listen.get_ctl_command(ctl_conn, 4096)
+
+    @staticmethod
     def sigterm_handler(signal, frame):
         print('Received SIGTERM. Exiting gracefully...')
         _NAMcore.stop_event.set()
 
     @staticmethod
     def init_ai():
-        ai_g4f_conf = dload.load_yaml("conf.yaml")["ai_settings"]["g4f_settings"]
+        ai_g4f_conf = dload.load_yaml(_NAMcore.conf_yaml)["ai_settings"]["g4f_settings"]
         ai.initg4f(ai_g4f_conf)
 
     @staticmethod
     def start_listen_server():
-        server_conf = dload.load_yaml("conf.yaml")["nam_server"]
-        listen.start_server(server_conf)
+        server_conf = dload.load_yaml(_NAMcore.conf_yaml)["nam_server"]
+        listen.start_server(server_conf, _NAMcore.INTERACT)
     
     @staticmethod
     def load_users():
-        users_data = dload.load_json("users.json")
+        users_data = dload.load_json(_NAMcore.users_json)
         for usr in users_data:
             _NAMcore.known_users.append(datastruct.from_dict(usr))
 
-    @staticmethod
-    def save_users():
-        users_dictlist = []
-        for usr in _NAMcore.known_users:
-            users_dictlist.append(datastruct.to_dict(usr, save_uuid=True))
-        dload.save_json("users.json", users_dictlist)
 
-    @staticmethod
-    def create_user():
-        name = input("user name: ")
-        passwd = getpass("password: ").encode(encoding=listen.get_encoding())
-        usr = datastruct.NAMuser(name=name, pass_hash=bcrypt.hashpw(passwd, _NAMcore.salt).decode())
-        _NAMcore.known_users.append(usr)
 
-    @staticmethod
-    def delete_user(deleted_user_name):
-        for i in range(0, len(_NAMcore.known_users)):
-            if(_NAMcore.known_users[i].name == deleted_user_name):
-                _NAMcore.known_users.pop(i)
-                break
 
     @staticmethod
     def serve_connections():
@@ -153,67 +168,109 @@ class _NAMcore(object):
         ses_ref().add_message(ai_resp) #add response to session history
         listen.send_data(ses_ref().get_client_conn(), data=datastruct.to_dict(ai_resp)) #send response to the user
 
-    @staticmethod
-    def show_info():
-        print(f"sessions number: {datastruct.NAMsession.count}")
-        print("all known useers:")
-        for usr in _NAMcore.known_users:
-            print(f"name: {usr.name :<25} uuid:{usr.uuid :>25}")
-        print("currently active sessions:")
-        for ses in _NAMcore.user_sessions:
-            print(f"session uuid: {ses.uuid}\n\tname: {ses.get_username() :<25} uuid:{ses.get_useruuid() :>25}")
+
+
 
     @staticmethod
     def server_manage():
         while True:
-            if not _NAMcore.INTERACT:
+            if _NAMcore.stop_event.is_set(): break
+            if _NAMcore.INTERACT: _NAMcore.direct_interaction()
+            else:
                 ctl_conn = listen.get_ctl_connect()
-                command = listen.get_ctl_command(ctl_conn).split(" ")
-            else:
-                print("nam> ", end="")
-                command = input().split(" ")
-            answer = ""
-            match command[0]:
-                case "create":
-                    if len(command) < 2:
-                        answer = "specify what to create or try help"
-                        continue
-                    match command[1]:
-                        case "user":
-                            _NAMcore.create_user()
-                        case _:
-                            answer = f"wrong parameter '{command[1]}'"
-                case "delete":
-                    if len(command) < 3:
-                        answer = "specify what to delete or try help"
-                        continue
-                    match command[1]:
-                        case "user":
-                            _NAMcore.delete_user(command[2])
-                        case _:
-                            answer = f"wrong parameter '{command[1]}'"
-                case "info":
-                    _NAMcore.show_info()
-                case "status":
-                    answer = f"running\nCurrent sessions - {datastruct.NAMsession.count}"
-                case "save":
-                    _NAMcore.save_users()
-                case "stop":
-                    print("nam server is stopping...")
-                    _NAMcore.stop_event.set()
-                    if not _NAMcore.INTERACT: listen.close_ctl_conn(ctl_conn)
-                    break
-                case "help":
-                    answer = "create user - create new user\nsave - save all users\ninfo - print all info\nstatus - print short info\ndelete user <name> - delete user\nstop - stop server\nhelp - show this info"
-                case "":
-                    pass
-                case _:
-                    answer = f"wrong parameter '{command[0]}'"
-            if not _NAMcore.INTERACT:
-                listen.send_ctl_answer(ctl_conn, answer)
+                _NAMcore.ctl_interaction(ctl_conn)
+                _NAMcore.send_output("END", ctl_conn)
                 listen.close_ctl_conn(ctl_conn)
-            else:
-                if answer != "": print(answer)
+
+    @staticmethod
+    def direct_interaction():
+        command = _NAMcore.get_input()
+        if command == None or command == "": return
+        _NAMcore.serve_command(command)
+
+    @staticmethod
+    def ctl_interaction(ctl_conn):
+        command = _NAMcore.get_input(ctl_conn)
+        if command == None or command == "": return
+        _NAMcore.serve_command(command, ctl_conn)
+
+    @staticmethod
+    def serve_command(command_string, ctl_conn = None):
+        command = _NAMcore.split_command(command_string)
+        if command == None:
+            _NAMcore.send_output("Wrong command, try help", ctl_conn)
+            return
+        ctl_command_func = getattr(_NAMcore, _NAMcore.commads_dict[command])
+        ctl_command_func(ctl_conn)
+
+    @staticmethod
+    def split_command(command):
+        command_list = command.split(" ")
+        if command_list[0] in _NAMcore.commads_dict: return command_list[0]
+        if " ".join(command_list[0:2]) in _NAMcore.commads_dict: return " ".join(command_list[0:2])
+        return None
+
+
+
+
+    @staticmethod
+    def show_info(ctl_conn = None):
+        _NAMcore.send_output(f"sessions number: {datastruct.NAMsession.count}", ctl_conn)
+        _NAMcore.send_output("all known useers:", ctl_conn)
+        for usr in _NAMcore.known_users:
+            _NAMcore.send_output(f"name: {usr.name :<25} uuid:{usr.uuid :>25}", ctl_conn)
+        _NAMcore.send_output("currently active sessions:", ctl_conn)
+        for ses in _NAMcore.user_sessions:
+            _NAMcore.send_output(f"session uuid: {ses.uuid}\n\tname: {ses.get_username() :<25} uuid:{ses.get_useruuid() :>25}", ctl_conn)
+
+    @staticmethod
+    def show_status(ctl_conn = None):
+        _NAMcore.send_output(f"running\nCurrent sessions - {datastruct.NAMsession.count}", ctl_conn)
+
+    @staticmethod
+    def show_help(ctl_conn = None):
+        _NAMcore.send_output("""
+create user - create new user
+save - save all users
+info - print all info
+status - print short info
+delete user - delete user
+stop - stop server
+help - show this info""", ctl_conn)
+
+    @staticmethod
+    def stop_all(ctl_conn = None):
+        _NAMcore.send_output("nam server is stopping...", ctl_conn)
+        _NAMcore.stop_event.set()
+
+    @staticmethod
+    def save_users(ctl_conn = None):
+        users_dictlist = []
+        for usr in _NAMcore.known_users:
+            users_dictlist.append(datastruct.to_dict(usr, save_uuid=True))
+        dload.save_json(_NAMcore.users_json, users_dictlist)
+
+    @staticmethod
+    def create_user(ctl_conn = None):
+        name = _NAMcore.get_input("user name: ", ctl_conn)
+        passwd = _NAMcore.get_input("password: ", ctl_conn).encode(encoding=listen.get_encoding())
+        if name == None or passwd == None: return
+        usr = datastruct.NAMuser(name=name, pass_hash=bcrypt.hashpw(passwd, _NAMcore.salt).decode())
+        _NAMcore.known_users.append(usr)
+
+    @staticmethod
+    def delete_user(ctl_conn = None):
+        _NAMcore.send_output("all known useers:", ctl_conn)
+        for usr in _NAMcore.known_users:
+            _NAMcore.send_output(f"name: {usr.name :<25} uuid:{usr.uuid :>25}", ctl_conn)
+        deleted_user_name = _NAMcore.get_input("enter user name to delete: ", ctl_conn)
+        for i in range(0, len(_NAMcore.known_users)):
+            if(_NAMcore.known_users[i].name == deleted_user_name):
+                _NAMcore.known_users.pop(i)
+                break
+
+
+
 
 def main():
     _NAMcore.start_core()

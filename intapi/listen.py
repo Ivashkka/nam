@@ -12,10 +12,11 @@ class _NAMserver(object):#basic serverside networking structure
     encoding = None
     clients_count = None
 
-    INTERACT = True #will change in future
+    INTERACT = False #will change in future
 
     @staticmethod
-    def bind_socket(ip, port, encoding, clients_count, unix_socket_path): # create socket and bind to port
+    def bind_socket(ip, port, encoding, clients_count, unix_socket_path, interact): # create socket and bind to port
+        _NAMserver.INTERACT = interact
         _NAMserver.nam_sock = socket.socket()
         _NAMserver.nam_sock.bind((ip, port))
         _NAMserver.nam_sock.listen(clients_count)
@@ -64,8 +65,8 @@ class _NAMserver(object):#basic serverside networking structure
         if not _NAMserver.bind: return None
         try:
             client_conn.send(json.dumps(test_data).encode(encoding=_NAMserver.encoding))
-        except ConnectionResetError:
-            return False
+        except Exception as e:
+            if e != socket.timeout: return False
         return True
 
     @staticmethod
@@ -86,7 +87,7 @@ class _NAMserver(object):#basic serverside networking structure
             return ctl_conn.recv(bytes).decode()
         except Exception as e:
             return None
-    
+
     @staticmethod
     def send_ctl_answer(ctl_conn, data):
         if not _NAMserver.bind: return None
@@ -94,7 +95,7 @@ class _NAMserver(object):#basic serverside networking structure
             ctl_conn.send(data.encode(encoding=_NAMserver.encoding))
         except Exception as e:
             return None
-        
+
     def close_ctl_conn(ctl_conn):
         if not _NAMserver.bind: return None
         ctl_conn.close()
@@ -108,8 +109,8 @@ class _NAMserver(object):#basic serverside networking structure
             if os.path.exists(_NAMserver.uspath):
                 raise Exception(f"can't remove old {_NAMserver.uspath} socket!")
 
-def start_server(params_dict):
-    _NAMserver.bind_socket(params_dict["ip"], params_dict["port"], params_dict["encoding"], params_dict["clients_count"], params_dict["unix_socket_path"])
+def start_server(params_dict, interact):
+    _NAMserver.bind_socket(params_dict["ip"], params_dict["port"], params_dict["encoding"], params_dict["clients_count"], params_dict["unix_socket_path"], interact)
 
 def wait_for_conn():
     return _NAMserver.wait_for_conn()
@@ -132,11 +133,11 @@ def close_local_sock():
 def get_ctl_connect():
     return _NAMserver.get_ctl_connect()
 
-def send_ctl_answer():
-    _NAMserver.send_ctl_answer()
+def send_ctl_answer(ctl_conn, data):
+    _NAMserver.send_ctl_answer(ctl_conn, data)
 
-def get_ctl_command():
-    return _NAMserver.get_ctl_command()
+def get_ctl_command(ctl_conn, bytes):
+    return _NAMserver.get_ctl_command(ctl_conn, bytes)
 
 def close_ctl_conn():
     return _NAMserver.close_ctl_conn()
