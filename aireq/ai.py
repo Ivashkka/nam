@@ -1,7 +1,14 @@
+########################## ai.py ##########################
+
 import g4f
 import asyncio
+import enum
 
-class _G4Fai(object): #base static class for implementing g4f requests with context (later with different models, depends on clientside)
+class AIexcode(enum.Enum):
+    Success     =   0
+    Fail        =   2
+
+class _G4Fai(object): #base static class for implementing g4f requests with context
     init = False
     providers = []
 
@@ -11,7 +18,7 @@ class _G4Fai(object): #base static class for implementing g4f requests with cont
         try:
             response = await g4f.ChatCompletion.create_async(
                 model=model,
-                provider=provider, #later with asyncio all providers simultaneously
+                provider=provider,
                 messages=messages,
             )
             return({"provider": provider.__name__, "response": response})
@@ -30,11 +37,16 @@ class _G4Fai(object): #base static class for implementing g4f requests with cont
                     return res["response"]
 
 def ask(messages, model): #main function to ask g4f (later g4f or openai, depends on init)
-    return asyncio.run(_G4Fai.ask_all(messages, getattr(g4f.models, model)))
+    try:
+        return asyncio.run(_G4Fai.ask_all(messages, getattr(g4f.models, model)))
+    except: return AIexcode.Fail
 
 def initg4f(settings): #init g4f: set base parameters and toggle g4f on (later g4f or openai)
-    g4f.debug.logging = False  # Disable debug logging
-    g4f.debug.check_version = False  # Disable automatic version checking
-    for prov in settings["providers"]:
-        _G4Fai.providers.append(getattr(g4f.Provider, prov))
-    _G4Fai.init=True
+    try:
+        g4f.debug.logging = False  # Disable debug logging
+        g4f.debug.check_version = False  # Disable automatic version checking
+        for prov in settings["providers"]:
+            _G4Fai.providers.append(getattr(g4f.Provider, prov))
+        _G4Fai.init=True
+        return AIexcode.Success
+    except: return AIexcode.Fail
