@@ -9,13 +9,14 @@
 
 # server can be started in interact or backgroud mode
 # interact mode occupies terminal and needed for tests
-# background mode IS NOT SUPPORTED yet (any lines of codes related to unix named sockets are unstable from previous versions)
+# background mode can be safely started with & and uses unix named sockets for communication with ctl instrument
 
-# arguments: python3 main.py <interact> <configs_path>
-# if no <interact> specified, the server starts in the interact mode
+# arguments: python3 main.py <interact/background> <configs_path>
+# if no <interact/background> specified, the server starts in the interact mode
 # if no <configs_path> specified, the server looking for configs in current folder
 
 # to start server in interact mode use `python3 main.py interact .`
+# to start server in background mode use `python3 main.py background <conf_path>`
 
 # to execute any command try `command` for ex: `help`
 
@@ -96,14 +97,16 @@ class _NAMcore(object):
     def solve_cli_args():
         if "interact" in sys.argv:
             _NAMcore.INTERACT = True
+        if "background" in sys.argv:
+            _NAMcore.INTERACT = False
         if len(sys.argv) == 2:
-            if str(sys.argv[1]) != "interact":
+            if str(sys.argv[1]) != "interact" and str(sys.argv[1]) != "background":
                 if dload.test_file(str(sys.argv[1])+"/conf.yaml"):
                     _NAMcore.conf_yaml = str(sys.argv[1])+"/conf.yaml"
                     _NAMcore.users_json = str(sys.argv[1])+"/users.json"
                     return datastruct.NAMEtype.Success
         elif len(sys.argv) == 3:
-            if str(sys.argv[2]) != "interact":
+            if str(sys.argv[2]) != "interact" and str(sys.argv[2]) != "background":
                 if dload.test_file(str(sys.argv[2])+"/conf.yaml"):
                     _NAMcore.conf_yaml = str(sys.argv[2])+"/conf.yaml"
                     _NAMcore.users_json = str(sys.argv[2])+"/users.json"
@@ -139,7 +142,7 @@ class _NAMcore(object):
             print(data)
             return datastruct.NAMEtype.Success
         elif _NAMcore.current_output_ctl_conn != None:
-            sendcode = listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, data)
+            sendcode = listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, data+"\n")
             match sendcode:
                 case listen.NAMconcode.Timeout:
                     return datastruct.NAMEtype.ConTimeOut
@@ -147,6 +150,9 @@ class _NAMcore(object):
                     return datastruct.NAMEtype.IntConFail
                 case listen.NAMconcode.Success:
                     return datastruct.NAMEtype.Success
+                case _:
+                    return datastruct.NAMEtype.IntFail
+        else: return datastruct.NAMEtype.IntFail
 
     @staticmethod
     def get_input(prompt = "nam> "):  # get input from ctl user depending on running mode (input if interact and unix named socket if bg)

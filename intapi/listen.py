@@ -124,6 +124,7 @@ class _NAMserver(object): # basic serverside networking structure
         if not _NAMserver.bind: return NAMconcode.Fail
         try:
             ctl_conn.send(data.encode(encoding=_NAMserver.encoding))
+            return NAMconcode.Success
         except socket.timeout:
             return NAMconcode.Timeout
         except:
@@ -137,7 +138,6 @@ class _NAMserver(object): # basic serverside networking structure
 
     @staticmethod
     def close_local_sock(): # close unix named socket
-        if not _NAMserver.bind: return NAMconcode.Fail
         try:
             os.unlink(_NAMserver.uspath)
             return NAMconcode.Success
@@ -174,8 +174,8 @@ def send_ctl_answer(ctl_conn, data):
 def get_ctl_command(ctl_conn, bytes):
     return _NAMserver.get_ctl_command(ctl_conn, bytes)
 
-def close_ctl_conn():
-    return _NAMserver.close_ctl_conn()
+def close_ctl_conn(ctl_conn):
+    return _NAMserver.close_ctl_conn(ctl_conn)
 
 def get_encoding():
     return _NAMserver.encoding
