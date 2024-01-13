@@ -61,7 +61,7 @@ class _NAMcore(object):
     users_json          =   "users.json"
     known_users         =   []
     user_sessions       =   []
-    current_output_unix_socket = None
+    current_output_ctl_conn = None
 
     stop_event              =   Event()
     server_manage_thread    =   None
@@ -135,11 +135,11 @@ class _NAMcore(object):
     @staticmethod
     def send_output(data): # send output to ctl user depending on running mode (print if interact and unix named socket if bg)
         if data == None or data == "": return datastruct.NAMEtype.IntFail
-        if _NAMcore.current_output_unix_socket == None:
+        if _NAMcore.INTERACT == True:
             print(data)
             return datastruct.NAMEtype.Success
-        else:
-            sendcode = listen.send_ctl_answer(_NAMcore.current_output_unix_socket, data)
+        elif _NAMcore.current_output_ctl_conn != None:
+            sendcode = listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, data)
             match sendcode:
                 case listen.NAMconcode.Timeout:
                     return datastruct.NAMEtype.ConTimeOut
@@ -151,14 +151,14 @@ class _NAMcore(object):
     @staticmethod
     def get_input(prompt = "nam> "):  # get input from ctl user depending on running mode (input if interact and unix named socket if bg)
         if prompt == None: return datastruct.NAMEtype.IntFail
-        if _NAMcore.current_output_unix_socket == None:
+        if _NAMcore.INTERACT == True:
             print(prompt, end="")
             usr_input = input()
             return usr_input
-        else:
+        elif _NAMcore.current_output_ctl_conn != None:
             sendcode = _NAMcore.send_output(f"IEN {prompt}")
             if sendcode != datastruct.NAMEtype.Success: return sendcode
-            usr_input = listen.get_ctl_command(_NAMcore.current_output_unix_socket, 4096)
+            usr_input = listen.get_ctl_command(_NAMcore.current_output_ctl_conn, 4096)
             match usr_input:
                 case listen.NAMconcode.Timeout:
                     return datastruct.NAMEtype.ConTimeOut
@@ -168,6 +168,7 @@ class _NAMcore(object):
                     return datastruct.NAMEtype.IntFail
                 case _:
                     return usr_input
+        else: return datastruct.NAMEtype.IntFail
 
     @staticmethod
     def send_client_data(client_conn, data): # send data to nam client
@@ -395,14 +396,16 @@ class _NAMcore(object):
     def server_manage(): # serve stl user inputs
         while True:
             if _NAMcore.stop_event.is_set(): break
-            if _NAMcore.INTERACT: excode = _NAMcore.direct_interaction()
+            if _NAMcore.INTERACT:
+                if _NAMcore.direct_interaction() != datastruct.NAMEtype.Success:
+                    _NAMcore.send_output("Error. The command was not executed")
             else:
-                _NAMcore.current_output_unix_socket = listen.get_ctl_connect()
-                excode = _NAMcore.ctl_interaction()
+                _NAMcore.current_output_ctl_conn = listen.get_ctl_connect()
+                if _NAMcore.ctl_interaction() != datastruct.NAMEtype.Success:
+                    _NAMcore.send_output("Error. The command was not executed")
                 _NAMcore.send_output("END")
-                listen.close_ctl_conn(_NAMcore.current_output_unix_socket)
-                _NAMcore.current_output_unix_socket = None
-            if excode != datastruct.NAMEtype.Success: _NAMcore.send_output("Error. The command was not executed")
+                listen.close_ctl_conn(_NAMcore.current_output_ctl_conn)
+                _NAMcore.current_output_ctl_conn = None
 
 
 ########################## Serve inputed command ##########################
@@ -489,14 +492,14 @@ help - show this info""")
         for usr in _NAMcore.known_users:
             _NAMcore.send_output(f"name: {usr.name :<25} uuid:{usr.uuid :>25}")
         _NAMcore.send_output("enter user data to create new one:")
-        while True:
-            name = _NAMcore.get_input("user name (x to cancel): ")
-            if name == "x": return datastruct.NAMEtype.Success
-            passwd = _NAMcore.get_input("password (x to cancel): ")
-            if passwd == "x": return datastruct.NAMEtype.Success
-            if name == datastruct.NAMEtype.ConTimeOut or passwd == datastruct.NAMEtype.ConTimeOut: continue
-            if name != datastruct.NAMEtype.IntConFail and name != "" and passwd != datastruct.NAMEtype.IntConFail and passwd != "":
-                break
+        name = _NAMcore.get_input("user name (x to cancel): ")
+        if name == "x": return datastruct.NAMEtype.Success
+        passwd = _NAMcore.get_input("password (x to cancel): ")
+        if passwd == "x": return datastruct.NAMEtype.Success
+        if type(name) == datastruct.NAMEtype:
+            return name
+        if type(passwd) == datastruct.NAMEtype:
+            return passwd
         _NAMcore.send_output("to save users, try 'save' or 'help' for more info")
         usr = datastruct.NAMuser(name=name, pass_hash=_NAMcore.encode_passwd(passwd.encode(encoding=listen.get_encoding())))
         _NAMcore.known_users.append(usr)
@@ -508,6 +511,7 @@ help - show this info""")
         for usr in _NAMcore.known_users:
             _NAMcore.send_output(f"name: {usr.name :<25} uuid:{usr.uuid :>25}")
         deleted_user_name = _NAMcore.get_input("enter user name to delete: ")
+        if type(deleted_user_name) == datastruct.NAMEtype: return deleted_user_name
         for i in range(0, len(_NAMcore.known_users)):
             if(_NAMcore.known_users[i].name == deleted_user_name):
                 _NAMcore.known_users.pop(i)

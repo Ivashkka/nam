@@ -132,6 +132,7 @@ class _NAMserver(object): # basic serverside networking structure
     def close_ctl_conn(ctl_conn): # close connection over unix named socket
         if not _NAMserver.bind: return NAMconcode.Fail
         ctl_conn.close()
+        ctl_conn = None
         return NAMconcode.Success
 
     @staticmethod
@@ -144,6 +145,7 @@ class _NAMserver(object): # basic serverside networking structure
             if os.path.exists(_NAMserver.uspath):
                 print(f"can't remove old {_NAMserver.uspath} socket!")
                 return NAMconcode.Fail
+            return NAMconcode.Success
 
 def start_server(params_dict, interact):
     return _NAMserver.bind_socket(params_dict["ip"], params_dict["port"], params_dict["encoding"], params_dict["clients_count"], params_dict["unix_socket_path"], interact)
