@@ -6,6 +6,9 @@
 #vscode
 .vscode/
 
+#python venv
+*_venv/
+
 # User-specific files
 *.rsuser
 *.suo

@@ -55,6 +55,7 @@ import signal
 import setproctitle
 import time
 import sys
+import inspect
 
 class _NAMcore(object):
     salt                =   b'$2b$12$ET4oX.YJCrU9OX92KWW2Ku'
@@ -95,6 +96,8 @@ class _NAMcore(object):
 
     @staticmethod
     def solve_cli_args():
+        if "interact" in sys.argv and "background" in sys.argv:
+            return datastruct.NAMEtype.IntFail
         if "interact" in sys.argv:
             _NAMcore.INTERACT = True
         if "background" in sys.argv:
@@ -431,20 +434,28 @@ class _NAMcore(object):
     @staticmethod
     def serve_command(command_string):
         if command_string == "": return datastruct.NAMEtype.Success
-        command = _NAMcore.split_command(command_string)
+        command, args = _NAMcore.split_command(command_string)
         if command == None:
             _NAMcore.send_output("Wrong command, try help")
             return datastruct.NAMEtype.IntFail
         ctl_command_func = getattr(_NAMcore, _NAMcore.commads_dict[command])
-        return ctl_command_func()
+        if len(inspect.signature(ctl_command_func).parameters) > 0:
+            if args == None: return datastruct.NAMEtype.IntFail
+            return ctl_command_func(args)
+        else:
+            if args != None: return datastruct.NAMEtype.IntFail
+            return ctl_command_func()
 
     @staticmethod
     def split_command(command):
         command_list = command.split(" ")
-        if len(command_list) < 1: return None
-        if command_list[0] in _NAMcore.commads_dict: return command_list[0]
-        if " ".join(command_list[0:2]) in _NAMcore.commads_dict: return " ".join(command_list[0:2])
-        return None
+        com, arg = None, None
+        if len(command_list) < 1: return None, None
+        if command_list[0] in _NAMcore.commads_dict: com = command_list[0]
+        if " ".join(command_list[0:2]) in _NAMcore.commads_dict: com = " ".join(command_list[0:2])
+        if com == None: return None, None
+        if len(command_list) > len(com.split(" ")): arg = " ".join(command_list[len(com.split(" ")):])
+        return com, arg
 
 
 ########################## Server commands implementations ##########################
@@ -527,9 +538,9 @@ help - show this info""")
 
 
 
-
 def main():
     _NAMcore.start_core()
+    exit(0)
 
 if __name__ == "__main__":
     main()
