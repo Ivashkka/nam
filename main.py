@@ -56,6 +56,7 @@ import setproctitle
 import time
 import sys
 import inspect
+import queue
 
 class _NAMcore(object):
     salt                =   b'$2b$12$ET4oX.YJCrU9OX92KWW2Ku'
@@ -64,6 +65,7 @@ class _NAMcore(object):
     known_users         =   []
     user_sessions       =   []
     current_output_ctl_conn = None
+    ctl_output_queue = queue.Queue()
 
     stop_event              =   Event()
     server_manage_thread    =   None
@@ -145,17 +147,21 @@ class _NAMcore(object):
             print(data)
             return datastruct.NAMEtype.Success
         elif _NAMcore.current_output_ctl_conn != None:
-            sendcode = listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, data+"\n")
+            sendcode = listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, "TESTCON")
             match sendcode:
                 case listen.NAMconcode.Timeout:
+                    _NAMcore.ctl_output_queue.put(data)
                     return datastruct.NAMEtype.ConTimeOut
                 case listen.NAMconcode.Fail:
+                    _NAMcore.ctl_output_queue.put(data)
                     return datastruct.NAMEtype.IntConFail
-                case listen.NAMconcode.Success:
-                    return datastruct.NAMEtype.Success
-                case _:
-                    return datastruct.NAMEtype.IntFail
-        else: return datastruct.NAMEtype.IntFail
+            while not _NAMcore.ctl_output_queue.empty():
+                listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, _NAMcore.ctl_output_queue.get()+"\n")
+            listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, data+"\n")
+            return datastruct.NAMEtype.Success
+        else:
+            _NAMcore.ctl_output_queue.put(data)
+            return datastruct.NAMEtype.IntFail
 
     @staticmethod
     def get_input(prompt = "nam> "):  # get input from ctl user depending on running mode (input if interact and unix named socket if bg)
@@ -207,7 +213,6 @@ class _NAMcore(object):
                             return datastruct.NAMEtype.ClientFail
                 elif obj.type == datastruct.NAMDtype.NAMcommand:
                     if obj.command == datastruct.NAMCtype.TestConn and nothing_extra:
-                        print("recursive call")
                         return _NAMcore.get_client_data(client_conn, nothing_extra)
                     else: return obj
                 else: return obj
@@ -313,6 +318,7 @@ class _NAMcore(object):
                 for usr_ses in _NAMcore.user_sessions:
                     usr_ses.thread.join()
                     listen.close_conn(usr_ses.client.client_conn)
+                _NAMcore.server_manage_thread.join()
                 if not _NAMcore.INTERACT: listen.close_local_sock()
                 print("done")
                 break
@@ -402,7 +408,7 @@ class _NAMcore(object):
             _NAMcore.send_client_data(ses.get_client_conn(), err_resp)
 
     @staticmethod
-    def server_manage(): # serve stl user inputs
+    def server_manage(): # serve ctl user inputs
         while True:
             if _NAMcore.stop_event.is_set(): break
             if _NAMcore.INTERACT:
@@ -410,6 +416,9 @@ class _NAMcore(object):
                     _NAMcore.send_output("Error. The command was not executed")
             else:
                 _NAMcore.current_output_ctl_conn = listen.get_ctl_connect()
+                if type(_NAMcore.current_output_ctl_conn) == listen.NAMconcode:
+                    _NAMcore.current_output_ctl_conn = None
+                    continue
                 if _NAMcore.ctl_interaction() != datastruct.NAMEtype.Success:
                     _NAMcore.send_output("Error. The command was not executed")
                 _NAMcore.send_output("END")

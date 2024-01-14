@@ -24,6 +24,7 @@ def ctl_connect():
 def serve_connection(user_command=None):
     while True:
         response = list(filter(None, ctl_conn.recv(4096).decode().split("\n")))
+        if "TESTCON" in response[0]: response.pop(0)
         if "END" in response[-1]:
             print("\n".join(response[:-1]))
             break
