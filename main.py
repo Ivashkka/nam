@@ -147,7 +147,7 @@ class _NAMcore(object):
             print(data)
             return datastruct.NAMEtype.Success
         elif _NAMcore.current_output_ctl_conn != None:
-            sendcode = listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, "TESTCON")
+            sendcode = listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, "")
             match sendcode:
                 case listen.NAMconcode.Timeout:
                     _NAMcore.ctl_output_queue.put(data)
@@ -156,7 +156,9 @@ class _NAMcore(object):
                     _NAMcore.ctl_output_queue.put(data)
                     return datastruct.NAMEtype.IntConFail
             while not _NAMcore.ctl_output_queue.empty():
-                listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, _NAMcore.ctl_output_queue.get()+"\n")
+                qdata = _NAMcore.ctl_output_queue.get()
+                if "END" not in qdata or "IEN" not in qdata:
+                    listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, qdata+"\n")
             listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, data+"\n")
             return datastruct.NAMEtype.Success
         else:
