@@ -1,0 +1,56 @@
+#!/usr/bin/python3
+
+import socket
+import yaml
+import sys
+
+conf_path="/etc/nam_server/conf.yaml"
+
+try:
+    with open(conf_path) as f:
+        data = yaml.safe_load(f)
+except:
+    raise Exception(f"can't find {conf_path}")
+
+socket_path = data["nam_server"]["unix_socket_path"]
+encoding = data["nam_server"]["encoding"]
+ctl_conn = None
+
+def ctl_connect():
+    global ctl_conn
+    ctl_conn = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    ctl_conn.connect(socket_path)
+
+def serve_connection(user_command=None):
+    while True:
+        response = list(filter(None, ctl_conn.recv(4096).decode().split("\n")))
+        if "END" in response[-1]:
+            print("\n".join(response[:-1]))
+            break
+        elif "IEN" in response[-1]:
+            print("\n".join(response[:-1]))
+            prompt = response[-1].replace("IEN ", "")
+            if user_command == None:
+                command = input(prompt)
+            else:
+                command = user_command
+                user_command = None
+            if command == "": break
+            ctl_conn.send(command.encode(encoding=encoding))
+        else:
+            print("\n".join(response))
+
+def main():
+    if len(sys.argv) > 1:
+        ctl_connect()
+        serve_connection(" ".join(sys.argv[1:]))
+    else:
+        while True:
+            ctl_connect()
+            command = input("nam> ")
+            if command == "exit": break
+            serve_connection(command)
+            if command == "stop": break
+    if ctl_conn != None: ctl_conn.close()
+
+main()

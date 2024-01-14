@@ -1,0 +1,4 @@
+bcrypt
+g4f
+pyyaml
+setproctitle
