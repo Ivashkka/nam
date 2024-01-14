@@ -448,7 +448,7 @@ class _NAMcore(object):
 
     @staticmethod
     def split_command(command):
-        command_list = command.split(" ")
+        command_list = list(filter(None, command.split(" ")))
         com, arg = None, None
         if len(command_list) < 1: return None, None
         if command_list[0] in _NAMcore.commads_dict: com = command_list[0]
