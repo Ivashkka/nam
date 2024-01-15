@@ -22,35 +22,35 @@ GROUP := nam
 all: install
 
 install:
-        echo installing nam_server...
-        #cp all files to dist_dir andr rm unnecessary
-        mkdir $(DIST_DIR)
-        cp -r . $(DIST_DIR)
-        rm $(SIDE_FILES)
-        #cp other files to system folders
-        cp $(BIN_FILES) $(BIN_DIR)
-        mkdir $(CONF_DIR)
-        cp $(CONF_FILES) $(CONF_DIR)
-        cp $(SYSD_FILES) $(SYSD_DIR)
-        #create nam user and chown related files
-        adduser --system --no-create-home --group $(USER)
-        chown -R $(USER):$(GROUP) $(DIST_DIR)
-        chown -R $(USER):$(GROUP) $(CONF_DIR)
-        chown $(USER):$(GROUP) $(EXEC_FILES)
-        #chmod all excecutables
-        chmod 755 $(EXEC_FILES)
-        #generate venv and install python dependencies
-        python3 -m venv $(VENV_DIR)
-        $(VENV_DIR)/bin/pip3 install -r $(REQ_FILE)
-        systemctl daemon-reload
-        echo done
+	echo installing nam_server...
+	#cp all files to dist_dir andr rm unnecessary
+	mkdir $(DIST_DIR)
+	cp -r . $(DIST_DIR)
+	rm $(SIDE_FILES)
+	#cp other files to system folders
+	cp $(BIN_FILES) $(BIN_DIR)
+	mkdir $(CONF_DIR)
+	cp $(CONF_FILES) $(CONF_DIR)
+	cp $(SYSD_FILES) $(SYSD_DIR)
+	#create nam user and chown related files
+	adduser --system --no-create-home --group $(USER)
+	chown -R $(USER):$(GROUP) $(DIST_DIR)
+	chown -R $(USER):$(GROUP) $(CONF_DIR)
+	chown $(USER):$(GROUP) $(EXEC_FILES)
+	#chmod all excecutables
+	chmod 755 $(EXEC_FILES)
+	#generate venv and install python dependencies
+	python3 -m venv $(VENV_DIR)
+	$(VENV_DIR)/bin/pip3 install -r $(REQ_FILE)
+	systemctl daemon-reload
+	echo done
 clean:
-        #rm all files
-        echo uninstalling nam_server...
-        systemctl stop nam_server.service
-        rm $(EXEC_FILES)
-        rm -r $(DIST_DIR)
-        rm -r $(CONF_DIR)
-        rm $(CLEAN_LAST)
-        systemctl daemon-reload
-        echo done
+	#rm all files
+	echo uninstalling nam_server...
+	systemctl stop nam_server.service
+	rm $(EXEC_FILES)
+	rm -r $(DIST_DIR)
+	rm -r $(CONF_DIR)
+	rm $(CLEAN_LAST)
+	systemctl daemon-reload
+	echo done
