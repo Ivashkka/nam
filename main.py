@@ -85,7 +85,7 @@ class _NAMcore(object):
     @staticmethod
     def start_core():
         signal.signal(signal.SIGTERM, _NAMcore.sigterm_handler)   # handle SIGTERM signal
-        setproctitle.setproctitle('nam_server_python')
+        #setproctitle.setproctitle('nam_server_python') # problems with systemd
         if _NAMcore.solve_cli_args() == datastruct.NAMEtype.IntFail: raise Exception("Wrong arguments or argument positions!")
         if _NAMcore.test_conf_file(_NAMcore.conf_yaml, _NAMcore.conf_keys) == False:
             raise Exception("conf.yaml file is invalid!")
@@ -161,7 +161,7 @@ class _NAMcore(object):
                     qdata = _NAMcore.ctl_output_queue.get()
                     if "END" not in qdata and "IEN" not in qdata:
                         listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, qdata+"\n")
-                listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, "------------------------------------------\n\n\n")
+                listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, "------------------------------------------\n")
             listen.send_ctl_answer(_NAMcore.current_output_ctl_conn, data+"\n")
             return datastruct.NAMEtype.Success
         else:

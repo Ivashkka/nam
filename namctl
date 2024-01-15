@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-
+################ ctl instrument for nam server ################
 import socket
 import yaml
 import sys

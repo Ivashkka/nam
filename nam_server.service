@@ -1,0 +1,19 @@
+[Unit]
+Description=Nam Server
+After=syslog.target
+After=network.target
+
+[Service]
+Type=simple
+User=nam
+Group=nam
+WorkingDirectory=/usr/local/bin/nam_server
+PIDFile=/run/nam_server/nam_server.pid
+RuntimeDirectory=nam_server
+RuntimeDirectoryMode=755
+SyslogIdentifier=nam_server
+ExecStart=/usr/local/bin/nam_server/nam_server_venv/bin/python3 /usr/local/bin/nam_server/main.py background /etc/nam_server
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

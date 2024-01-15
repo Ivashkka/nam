@@ -3,7 +3,7 @@ nam_server:
   port: 9090
   encoding: utf-8
   clients_count: 2
-  unix_socket_path: /run/nam_server.sock
+  unix_socket_path: /run/nam_server/nam_server.sock
 ai_settings:
   g4f_settings:
     providers:
