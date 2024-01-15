@@ -75,7 +75,7 @@ class _NAMcore(object):
 
     # dict for matching command and corresponding _NAMcore function
     commads_dict = {"create user":"create_user", "delete user":"delete_user", "info":"show_info",
-                    "status":"show_status", "save":"save_users", "stop":"stop_all", "help":"show_help"}
+                    "status":"show_status", "save":"save_users", "stop":"stop_all", "help":"show_help", "fresh":"send_queue_data"}
 
     INTERACT = True # interact or background mode
 
@@ -549,6 +549,11 @@ help - show this info""")
                 return datastruct.NAMEtype.Success
         _NAMcore.send_output("no such user")
         return datastruct.NAMEtype.IntFail
+
+    @staticmethod
+    def send_queue_data():
+        _NAMcore.send_output("if empty - no new data")
+        return datastruct.NAMEtype.Success
 
 
 
