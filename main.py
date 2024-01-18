@@ -305,7 +305,8 @@ class _NAMcore(object):
     @staticmethod
     def open_new_session(client, settings):
         ses_list_id = len(_NAMcore.user_sessions) # will be used to access original session object in list
-        ses = datastruct.NAMsession(client=client, settings=settings, thread=Thread(target=_NAMcore.session_thread, args=[ses_list_id]))
+        ses = datastruct.NAMsession(client=client, settings=settings, thread=None)
+        ses.thread = Thread(target=_NAMcore.session_thread, args=[ses])
         _NAMcore.user_sessions.append(ses)
         _NAMcore.user_sessions[ses_list_id].thread.name = f"{_NAMcore.user_sessions[ses_list_id].uuid[0:6]}_session_thread"
         _NAMcore.user_sessions[ses_list_id].thread.start()
@@ -360,8 +361,7 @@ class _NAMcore(object):
                 listen.close_conn(conn["client_conn"])
 
     @staticmethod
-    def session_thread(session_id):
-        ses = _NAMcore.user_sessions[session_id] # session object in list
+    def session_thread(ses):
         aireq_thread = None
         conn_alive = True
         while True:
