@@ -75,7 +75,9 @@ class _NAMserver(object): # basic serverside networking structure
     def get_data(client_conn, bytes):
         if not _NAMserver.bind: return NAMconcode.Fail
         try:
-            return json.loads(client_conn.recv(bytes).decode())
+            data = client_conn.recv(bytes)
+            if not data: return NAMconcode.Fail
+            return json.loads(data.decode())
         except socket.timeout:
             return NAMconcode.Timeout
         except json.JSONDecodeError as e:
