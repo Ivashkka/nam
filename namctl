@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/local/bin/nam_server/nam_server_venv/bin/python3
 ################ ctl instrument for nam server ################
 import socket
 import yaml
