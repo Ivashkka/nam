@@ -23,6 +23,8 @@ all: install
 
 install:
 	echo installing nam_server...
+	apt install make
+	apt install python3.10-venv
 	#cp all files to dist_dir andr rm unnecessary
 	mkdir $(DIST_DIR)
 	cp -r . $(DIST_DIR)
