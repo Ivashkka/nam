@@ -3,6 +3,7 @@
 import g4f
 import asyncio
 import enum
+import time
 
 class AIexcode(enum.Enum):
     Success     =   0
@@ -15,15 +16,21 @@ class _G4Fai(object): #base static class for implementing g4f requests with cont
     @staticmethod
     async def send_async_req(provider: g4f.Provider.BaseProvider, messages, model):
         if not _G4Fai.init: return "g4f was not inited"
+        start_time = time.time()
         try:
             response = await g4f.ChatCompletion.create_async(
                 model=model,
                 provider=provider,
                 messages=messages,
             )
-            return({"provider": provider.__name__, "response": response})
+            end_time = time.time()
+            execution_time = end_time - start_time
+            return({"provider": provider.__name__, "response": response, "time": execution_time})
         except Exception as e:
             pass
+        end_time = time.time()
+        execution_time = end_time - start_time
+        return({"provider": provider.__name__, "response": "", "time": execution_time})
 
     @staticmethod
     async def ask_all(messages, model):
@@ -31,6 +38,9 @@ class _G4Fai(object): #base static class for implementing g4f requests with cont
             _G4Fai.send_async_req(provider, messages, model) for provider in _G4Fai.providers
         ]
         responses = await asyncio.gather(*calls)
+        for res in responses:
+            if res["time"] > 15.0:
+                _G4Fai.providers.remove(getattr(g4f.Provider, res["provider"]))
         for res in responses:
             if res != None:
                 if res["response"] != '':

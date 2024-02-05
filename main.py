@@ -406,12 +406,13 @@ class _NAMcore(object):
     def get_ai_resp_thread(ses, req): # wait for ai response thread
         ses.add_message(req) #add request to session history
         ai_resp = datastruct.AIresponse(message=ai.ask(ses.get_text_history(), ses.settings.model.value)) #ask g4f
-        if ai_resp != ai.AIexcode.Fail:
+        if ai_resp.message != ai.AIexcode.Fail:
             ses.add_message(ai_resp) #add response to session history
             _NAMcore.send_client_data(ses.get_client_conn(), ai_resp) #send response to the user
         else:
-            err_resp = datastruct.NAMexcode(datastruct.NAMEtype.IntFail)
-            _NAMcore.send_client_data(ses.get_client_conn(), err_resp)
+            #err_resp = datastruct.NAMexcode(datastruct.NAMEtype.IntFail)
+            ai_resp.message = "failed to get response. Try later"
+            _NAMcore.send_client_data(ses.get_client_conn(), ai_resp)
 
     @staticmethod
     def server_manage(): # serve ctl user inputs
