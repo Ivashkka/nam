@@ -19,12 +19,13 @@ CLEAN_LAST := $(SYSD_DIR)/nam_server.service
 USER := nam
 GROUP := nam
 
+PYTHON_VERSION := $(shell python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
+
 all: install
 
 install:
 	echo installing nam_server...
-	apt install make
-	apt install python3.10-venv
+	apt install python$(PYTHON_VERSION)-venv
 	#cp all files to dist_dir andr rm unnecessary
 	mkdir $(DIST_DIR)
 	cp -r . $(DIST_DIR)

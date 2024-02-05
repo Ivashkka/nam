@@ -7,9 +7,41 @@ nam_server:
 ai_settings:
   g4f_settings:
     providers:
-      - Bing
-      - FakeGpt
-      - GeekGpt
-      - Liaobots
-      - ChatgptAi
+      - AItianhu
+      - AItianhuSpace
+      - AiAsk
+      - Aichat
+      - ChatBase
       - ChatForAi
+      - ChatgptAi
+      - ChatgptX
+      - FakeGpt
+      - FreeGpt
+      - GPTalk
+      - GptForLove
+      - GptGo
+      - Hashnode
+      - MyShell
+      - NoowAi
+      - OpenaiChat
+      - Theb
+      - Vercel
+      - You
+      - Yqcloud
+      - Acytoo
+      - Aibn
+      - Ails
+      - Chatgpt4Online
+      - ChatgptDemo
+      - ChatgptDuo
+      - ChatgptFree
+      - ChatgptLogin
+      - Cromicle
+      - GptGod
+      - GeekGpt
+      - GptChatly
+      - Liaobots
+      - Raycast
+      - Bing
+      - Opchatgpts
+      - Ylokh

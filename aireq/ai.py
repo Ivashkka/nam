@@ -35,6 +35,7 @@ class _G4Fai(object): #base static class for implementing g4f requests with cont
             if res != None:
                 if res["response"] != '':
                     return res["response"]
+        return AIexcode.Fail
 
 def ask(messages, model): #main function to ask g4f (later g4f or openai, depends on init)
     try:
@@ -46,7 +47,9 @@ def initg4f(settings): #init g4f: set base parameters and toggle g4f on (later g
         g4f.debug.logging = False  # Disable debug logging
         g4f.debug.check_version = False  # Disable automatic version checking
         for prov in settings["providers"]:
-            _G4Fai.providers.append(getattr(g4f.Provider, prov))
+            try:
+                _G4Fai.providers.append(getattr(g4f.Provider, prov))
+            except: pass
         _G4Fai.init=True
         return AIexcode.Success
     except: return AIexcode.Fail

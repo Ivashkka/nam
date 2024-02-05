@@ -333,7 +333,8 @@ class _NAMcore(object):
             excode, conn = _NAMcore.get_new_client_conn()
             if excode == datastruct.NAMEtype.ClientFail:
                 err_resp = datastruct.NAMexcode(datastruct.NAMEtype.ClientFail)
-                _NAMcore.send_client_data(conn["client_conn"], err_resp) # send response to the user
+                try: _NAMcore.send_client_data(conn["client_conn"], err_resp) # send response to the user
+                except: pass
                 listen.close_conn(conn["client_conn"])
                 continue
             if excode != datastruct.NAMEtype.Success: continue

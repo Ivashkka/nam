@@ -4,8 +4,8 @@
 <p><b>* download client</b>  -  https://github.com/Ivashkka/nam_client</p>
 <br>
 <p><b>install:</b></p>
-<p>install make package:</p>
-<p><code>apt install make</code></p>
+<p>install make and git package:</p>
+<p><code>apt install make git</code></p>
 <p>create directory for clonning git repo on your machine:</p>
 <p><code>cd ~</code></p>
 <p><code>mkdir nam_repos; cd nam_repos</code></p>
